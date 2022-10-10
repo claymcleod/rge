@@ -1,118 +1,47 @@
-use std::env;
+pub mod analysis;
+pub mod cli;
 
-use anyhow::bail;
-use noodles::{core::Position, fasta};
+use anyhow::Context;
+use clap::Parser;
+use cli::Cli;
+use noodles::fasta;
+
+use crate::analysis::get_analyses;
 
 fn main() -> anyhow::Result<()> {
-    let src = env::args().nth(1).expect("missing src");
+    let cli = Cli::parse();
 
-    let mut reader = fasta::reader::Builder::default().build_from_path(src)?;
+    // (1) Set up tracing for logging
+    let subscriber = tracing_subscriber::fmt::Subscriber::builder()
+        .with_max_level(tracing::Level::DEBUG)
+        .with_writer(std::io::stderr)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)?;
 
-    // (1) Grab the sequence for both chromosome X and chromosome Y.
-    let mut chr_x = None;
-    let mut chr_y = None;
+    // (2) Process the FASTA file
+    let mut reader = fasta::reader::Builder::default()
+        .build_from_path(cli.src)
+        .with_context(|| "opening FASTA file")?;
+
+    // (3) Process analyses
+    let mut analyses = get_analyses();
 
     for result in reader.records() {
         let record = result?;
 
-        if record.name() == "chrX" {
-            chr_x = Some(record.sequence().clone());
-            println!("Hooked chromosome X!");
-        } else if record.name() == "chrY" {
-            chr_y = Some(record.sequence().clone());
-            println!("Hooked chromosome Y!");
+        for analysis in &mut analyses {
+            analysis.process(&record)?;
         }
     }
 
-    // (2) Ensure we hooked them both. If not, return an error.
-    if chr_x.is_none() {
-        bail!("We didn't identify chromosome X!");
-    } else if chr_y.is_none() {
-        bail!("We didn't identify chromosome Y!");
+    // (4) Postprocess analyses
+    for analysis in &mut analyses {
+        analysis.postprocess()?;
     }
 
-    println!("We hooked both chromosome X and chromosome Y!");
-    println!();
-    println!("----");
-    println!();
-
-    // (3) Detect start and end of PAR1
-
-    let chr_x = chr_x.unwrap();
-    let chr_y = chr_y.unwrap();
-
-    let mut x_ptr = 1usize;
-    let mut y_ptr = 1usize;
-
-    loop {
-        let position = Position::try_from(x_ptr)?;
-        let base = *chr_x.get(position).unwrap() as char;
-
-        if base != 'N' && base != 'n' {
-            println!("Found first non-N base for chrX at {}", x_ptr);
-            break;
-        }
-
-        x_ptr += 1;
-    }
-
-    loop {
-        let position = Position::try_from(y_ptr)?;
-        let base = *chr_y.get(position).unwrap() as char;
-
-        if base != 'N' && base != 'n' {
-            println!("Found first non-N base for chrY at {}", y_ptr);
-            break;
-        }
-
-        y_ptr += 1;
-    }
-
-    // (3) Loop through all positions in the file
-    loop {
-        let x_position = Position::try_from(x_ptr)?;
-        let y_position = Position::try_from(y_ptr)?;
-
-        let x_char = chr_x.get(x_position).unwrap();
-        let y_char = chr_y.get(y_position).unwrap();
-
-        if x_char != y_char {
-            println!(
-                "Deviance found at position chrX: {}, chrY: {}",
-                x_position, y_position
-            );
-            println!();
-
-            let start = Position::try_from(x_ptr)?;
-            let end = Position::try_from(x_ptr + 20)?;
-
-            println!(
-                "{:?}",
-                chr_x
-                    .get(start..=end)
-                    .unwrap()
-                    .iter()
-                    .map(|x| *x as char)
-                    .collect::<Vec<char>>()
-            );
-
-            let start = Position::try_from(y_ptr)?;
-            let end = Position::try_from(y_ptr + 20)?;
-
-            println!(
-                "{:?}",
-                chr_y
-                    .get(start..=end)
-                    .unwrap()
-                    .iter()
-                    .map(|x| *x as char)
-                    .collect::<Vec<char>>()
-            );
-            break;
-        }
-
-        x_ptr += 1;
-        y_ptr += 1;
+    // (5) Print results
+    for analysis in &analyses {
+        analysis.print_report()?;
     }
 
     Ok(())
