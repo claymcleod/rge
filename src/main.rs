@@ -1,3 +1,9 @@
+//! Binary crate for the Reference Genome Explorer (`rge`).
+
+#![warn(missing_docs)]
+#![warn(rust_2018_idioms)]
+#![warn(rust_2021_compatibility)]
+
 pub mod analysis;
 pub mod cli;
 

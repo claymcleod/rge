@@ -1,3 +1,12 @@
+//! Pseudoautosomal Region detection.
+//!
+//! This module introduces pseudoautosomal region detection for existing
+//! reference genomes. It does this by scanning the start and end of
+//! chromosomes X and Y, skipping all N bases, and then scanning the sequences
+//! to determine how long X and Y stay in sync. The start position of scanning,
+//! the start and end position of the N-masked regions caps, and the start and
+//! end position of the pseudoautosomal regions are all reported.
+
 use std::fmt::Display;
 
 use anyhow::bail;
@@ -12,19 +21,42 @@ use super::Analysis;
 // Utility results structs //
 //=========================//
 
+/// Utility struct that contains result information for a single chromosome that
+/// has been scanned in a single direction for a pseudoautosomal region.
 #[derive(Default, Debug)]
 pub struct PseudoAutosomalScanResult {
+    /// Start position of the scan. Generally, the start or end of the
+    /// chromsome, depending on which direction we are scanning.
     pub start_position: Option<Position>,
+
+    /// The position where the N-hardmasking region ends. In other words, this
+    /// is the first nucleobase that is not hardmasked with N.
     pub ns_until_position: Option<Position>,
+
+    /// The position where chromosome X and Y fall out of sync. This signifies
+    /// the end of the pseudoautosomal region.
     pub same_until_position: Option<Position>,
 
+    /// The length calculated between the start of the scan and the first base
+    /// of the pseudoautosomal region. In other words, this is how many
+    /// N-hardmasked nucleobases exist in the N-hardmasked region.
     pub start_to_ns_len: Option<i64>,
+
+    /// The length calculated between the first base of the pseudoautosomal
+    /// region and the first base of the non-pseudoautosomal region. In other
+    /// words, this is how long the pseudoautosomal region is.
     pub ns_to_same_len: Option<i64>,
 }
 
+/// Utility struct that holds results for pseudoautosomal scanning on both the X
+/// and Y chromosomes. This is needed because the scanning of the two
+/// chromosomes happen in tandem.
 #[derive(Default, Debug)]
 pub struct PairedPseudoAutosomalScanResult {
+    /// The scanned results for chromosome X.
     pub chr_x: PseudoAutosomalScanResult,
+
+    /// The scanned results for chromosome Y.
     pub chr_y: PseudoAutosomalScanResult,
 }
 
@@ -66,8 +98,12 @@ impl Display for PairedPseudoAutosomalScanResult {
 // Scan direction //
 //================//
 
+/// Utility struct which defines which directions we can scan the X and Y chromosomes.
 pub enum ScanDirection {
+    /// Scan in the forward direction.
     Forward,
+
+    /// Scan in the reverse direction.
     Reverse,
 }
 
@@ -75,15 +111,28 @@ pub enum ScanDirection {
 // Main analysis //
 //===============//
 
+/// Main struct that holds the pseudoautosomal region scanning analysis.
 #[derive(Default)]
 pub struct PseudoAutosomalRegionAnalysis {
-    chr_x: Option<Sequence>,
-    chr_y: Option<Sequence>,
-    forward_results: Option<PairedPseudoAutosomalScanResult>,
-    reverse_results: Option<PairedPseudoAutosomalScanResult>,
+    /// Chromosome X, if it exists in the reference genome. This is hooked as
+    /// the chromosomes are processed.
+    pub chr_x: Option<Sequence>,
+
+    /// Chromosome Y, if it exists in the reference genome. This is hooked as
+    /// the chromosomes are processed.
+    pub chr_y: Option<Sequence>,
+
+    /// The results of a forward-scan for the pseudoautosomal region on
+    /// chromosomes X and Y, if they exist yet.
+    pub forward_results: Option<PairedPseudoAutosomalScanResult>,
+
+    /// The results of a reverse-scan for the pseudoautosomal region on
+    /// chromosomes X and Y, if they exist yet.
+    pub reverse_results: Option<PairedPseudoAutosomalScanResult>,
 }
 
 impl PseudoAutosomalRegionAnalysis {
+    /// Scans chromosome X and Y for pseudoautosomal regions.
     pub fn scan_for_pseudoautosomal_region(
         &self,
         direction: ScanDirection,
