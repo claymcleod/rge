@@ -70,9 +70,9 @@ impl Display for PairedPseudoAutosomalScanResult {
             self.chr_x.ns_until_position.unwrap(),
             self.chr_x.start_to_ns_len.unwrap()
         )?;
-        write!(
+        writeln!(
             f,
-            "Same until: {} (Len: {:>6})\n",
+            "Same until: {} (Len: {:>6})",
             self.chr_x.same_until_position.unwrap(),
             self.chr_x.ns_to_same_len.unwrap()
         )?;
@@ -85,9 +85,9 @@ impl Display for PairedPseudoAutosomalScanResult {
             self.chr_y.ns_until_position.unwrap(),
             self.chr_y.start_to_ns_len.unwrap()
         )?;
-        write!(
+        writeln!(
             f,
-            "Same until: {} (Len: {:>6})\n",
+            "Same until: {} (Len: {:>6})",
             self.chr_y.same_until_position.unwrap(),
             self.chr_y.ns_to_same_len.unwrap()
         )
