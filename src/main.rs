@@ -11,6 +11,7 @@ use anyhow::Context;
 use clap::Parser;
 use cli::Cli;
 use noodles::fasta;
+use tracing::info;
 
 use crate::analysis::get_analyses;
 
@@ -34,6 +35,7 @@ fn main() -> anyhow::Result<()> {
 
     for result in reader.records() {
         let record = result?;
+        info!("Processing record: {}", record.name());
 
         for analysis in &mut analyses {
             analysis.process(&record)?;
@@ -47,7 +49,11 @@ fn main() -> anyhow::Result<()> {
 
     // (5) Print results
     for analysis in &analyses {
+        println!("{}", analysis.name());
+        println!("-----");
+        println!();
         analysis.print_report()?;
+        println!();
     }
 
     Ok(())

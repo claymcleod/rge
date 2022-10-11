@@ -2,13 +2,17 @@
 
 use noodles::fasta::Record;
 
-use self::par::PseudoAutosomalRegionAnalysis;
+use self::{ndetect::NRegionDetectionAnalysis, par::PseudoAutosomalRegionAnalysis};
 
+pub mod ndetect;
 pub mod par;
 
 /// Gets all analyses supported by the `rge` command line tool.
 pub fn get_analyses() -> Vec<Box<dyn Analysis>> {
-    vec![Box::new(PseudoAutosomalRegionAnalysis::default())]
+    vec![
+        Box::new(PseudoAutosomalRegionAnalysis::default()),
+        Box::new(NRegionDetectionAnalysis::default()),
+    ]
 }
 
 /// An analysis supported by `rge`.

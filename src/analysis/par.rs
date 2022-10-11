@@ -256,11 +256,9 @@ impl Analysis for PseudoAutosomalRegionAnalysis {
     }
 
     fn print_report(&self) -> anyhow::Result<()> {
-        println!("---");
         println!("Pseudoautosomal Region 1");
         println!("{}", self.forward_results.as_ref().unwrap());
         println!();
-        println!("---");
         println!("Pseudoautosomal Region 2");
         println!("{}", self.reverse_results.as_ref().unwrap());
         Ok(())
